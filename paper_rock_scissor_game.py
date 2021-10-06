@@ -34,7 +34,7 @@ while True:
 print("Your Wins:", user_wins, 'times')
 print("computer Wins:", computer_wins, 'times')
 print("Goodbuy!")
-print("shubham")
+
 
 
 
