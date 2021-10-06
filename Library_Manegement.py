@@ -25,7 +25,7 @@ class Library:
         self.bookslist.remove(book)
 
 if __name__ == '__main__':
-    harry = Library(['Python', 'Rich dad poor dad', 'Harry potter', 'C++ Basics', 'Algorithms by CLRS'], "Code with shubham")
+    harry = Library({'Python', 'Rich dad poor dad', 'Harry potter', 'C++ Basics', 'Algorithms by CLRS'}, "Code with shubham")
     
     while True:
         print("Welcome to the {harry.name} library. Enter your choice to continue")

@@ -7,7 +7,7 @@ options = ["paper", "rock", "scissor"]
 while True:
     user_input = input("Eneter the option paper, scissor, rock or press 'Q' for exit : ").lower()
     if user_input == 'q':
-        exit()
+        break
     if user_input not in options:
         continue
 
@@ -25,6 +25,8 @@ while True:
     elif user_input == 'scissor' and computer_pick == 'paper':
         print("You win!")
         user_wins += 1
+    elif user_input == computer_pick:
+        print("Match draw \n no points")
     else:
         print("compter win!")
         computer_wins += 1
