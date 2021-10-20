@@ -4,32 +4,19 @@ import requests
 import yfinance as yf
 from datetime import datetime
 import warnings
-import schedule
 import time
 import pandas_ta as ta
-
+import schedule
 warnings.filterwarnings('ignore')
-import matplotlib.pyplot as plt
 
-#pd.set_option('display.max_rows', None)
+
+pd.set_option('display.max_rows', None)
 pd.set_option('display.max_columns', None)
-
-
-def datetotimestamp(date):
-    time_tuple = date.timetuple()
-    timestamp = round(time.mktime(time_tuple))
-    return timestamp
-
-
-def timestamptodate(timestamp):
-    return datetime.fromtimestamp(timestamp)
-
 
 def Stock_data(stock='SBIN', period='6d', interval='5m'):
     ticker = yf.Ticker("{}.NS".format(stock))
     data = ticker.history(period=period, interval=interval)
     return data
-
 
 def atr(data, period):
     data['previous_close'] = data['Close'].shift(1)
@@ -41,7 +28,6 @@ def atr(data, period):
     atr = data['tr'].rolling(period).mean()
     data['atr'] = atr
     return atr
-
 
 def supertrend(data, period=7, atr_multiplier=3):
     hl2 = (data['High'] + data['Low']) / 2
@@ -72,7 +58,6 @@ def supertrend(data, period=7, atr_multiplier=3):
             data['ST_trend'][current] = "Short"
 
     return data
-
 
 def adx(data):
     adx = ta.adx(data["High"], data['Low'], data['Close'])
