@@ -1,31 +1,19 @@
 import numpy as np
 import pandas as pd
-import requests
 import yfinance as yf
 from datetime import datetime
-import warnings
 import schedule
 import time
 import pandas_ta as ta
+import smtplib
+import warnings
 
 warnings.filterwarnings('ignore')
-import matplotlib.pyplot as plt
-
-#pd.set_option('display.max_rows', None)
+pd.set_option('display.max_rows', None)
 pd.set_option('display.max_columns', None)
 
 
-def datetotimestamp(date):
-    time_tuple = date.timetuple()
-    timestamp = round(time.mktime(time_tuple))
-    return timestamp
-
-
-def timestamptodate(timestamp):
-    return datetime.fromtimestamp(timestamp)
-
-
-def Stock_data(stock='SBIN', period='6d', interval='5m'):
+def Stock_data(stock, period='5d', interval='5m'):
     ticker = yf.Ticker("{}.NS".format(stock))
     data = ticker.history(period=period, interval=interval)
     return data
@@ -104,20 +92,178 @@ def adx(data):
     return data
 
 
-def run_bot():
-    print(f"Fetched data of at {datetime.now().isoformat()}")
-    data = Stock_data(stock='MRF')
-    print(data)
-    st = supertrend(data)
-    adx1 = adx(st)
-    #print(adx1[['Close', 'ST_trend', 'adx_indicator']])
+def sma(data):
+    data['SMA 6'] = data['Close'].rolling(6).mean()
+    data['SMA 20'] = data['Close'].rolling(20).mean()
+    data['SMA_Indicator'] = 'NaN'
+    for i in range(len(data.index)):
+        if data['SMA 6'][i] > data['SMA 20'][i]:
+            data['SMA_Indicator'][i] = "Buy"
+        elif data['SMA 20'][i] > data['SMA 6'][i]:
+            data['SMA_Indicator'][i] = "Short"
+        else:
+            data['SMA_Indicator'][i] = np.NAN
+
+    return data
+
+
+def macd(data):
+    macd = ta.macd(data['Close'])
+    data = pd.concat([data, macd], axis=1).reindex(data.index)
+    data['macd_Indicator'] = 'NaN'
+
+    for i in range(len(data.index)):
+        if data['MACD_12_26_9'][i] > data['MACDs_12_26_9'][i]:
+            data['macd_Indicator'][i] = "Buy"
+        elif data['MACDs_12_26_9'][i] > data['MACD_12_26_9'][i]:
+            data['macd_Indicator'][i] = "Short"
+        else:
+            data['macd_Indicator'][i] = np.NAN
+
+    return data
+
+
+def Final_Signal(data):
+    data["Final_Signal"] = 'NaN'
+    for i in range(len(data.index)):
+        if data["ST_trend"][i] == "Buy" and data["SMA_Indicator"][i] == "Buy" and data["macd_Indicator"][i] == "Buy":
+            data["Final_Signal"][i] = 'Buy'
+        elif data["ST_trend"][i] == "Short" and data["SMA_Indicator"][i] == "Short" and data["macd_Indicator"][
+            i] == "Short":
+            data["Final_Signal"][i] = "Short"
+        else:
+            data["Final_Signal"][i] = 'No Clear trend'
+    return data
+
+
+def send_alert(data, i):
+    sendrf_mail = ""
+    password = ""
+    receiver_mail = ""
+    server = smtplib.SMTP("smtp.gmail.com", 587)
+    server.starttls()
+    server.login(s_mail, password)
+    print('login successful')
+    last_row_index = len(data.index) - 1
+    previous_row_index = last_row_index - 1
+
+    if not data['Final_Signal'][previous_row_index] and data['Final_Signal'][last_row_index]:
+        price = str(data['Close'].tail(1))
+        price = price[34:]
+        message = '{}  BUY at price {}'.format(i,price)
+        server.sendmail(s_mail, r_mail, message)
+        print('Mail send')
+    elif data['Final_Signal'][previous_row_index] and not data['Final_Signal'][last_row_index]:
+        price = str(data['Close'].tail(1))
+        price = price[34:]
+        message = '{}  SELL at price {}'.format(i, price)
+        server.sendmail(s_mail, r_mail, message)
+        print('Mail send')
+
+def run_intraday():
+    print(f"Fetched data at {datetime.now().isoformat()}", end='')
+    f = open("watchlist.txt", "r")
+    watchlist1 = f.readlines()
+    watchlist2 = []
+    for ele in watchlist1:
+        watchlist2.append(ele.strip())
+    f.close()
+    print(' for yours watchlist :', watchlist2)
+    for i in watchlist2:
+        data = Stock_data(stock=i, period='5d', interval="5m")
+        st = supertrend(data)
+        adx1 = adx(st)
+        sma1 = sma(adx1)
+        md = macd(sma1)
+        fs = Final_Signal(md)
+        send_alert(fs, i)
+        print('................................................................')
+        print(i, fs[['Close', 'Final_Signal', 'adx_indicator']].tail(5))
     print('I am working.......')
 
 
-schedule.every(2).seconds.do(run_bot)
+def run_longterm():
+    print(f"Fetched data at {datetime.now().isoformat()}", end='')
+    f = open("watchlist.txt", "r")
+    watchlist1 = f.readlines()
+    watchlist2 = []
+    for ele in watchlist1:
+        watchlist2.append(ele.strip())
+    f.close()
+    print(' for yours watchlist :', watchlist2)
+    for i in watchlist2:
+        data = Stock_data(stock=i, period='30d',interval="1h")
+        st = supertrend(data)
+        adx1 = adx(st)
+        sma1 = sma(adx1)
+        md = macd(sma1)
+        fs = Final_Signal(md)
+        send_alert(fs, i)
+        print('................................................................')
+        print(i, fs[['Close', 'Final_Signal', 'adx_indicator']].tail(5))
+    print('I am working.......')
 
+
+watchlist = []
 while True:
-    schedule.run_pending()
-    time.sleep(1)
+    print('Hello I am trading Bot developed by Mr Dileep Chakravarthi')
+    f = open("watchlist.txt", "r")
+    watchlist1 = f.readlines()
+    watchlist2 = []
+    for ele in watchlist1:
+        watchlist2.append(ele.strip())
+    f.close()
+    print('Yours watchlist :', watchlist2)
+    print('Select options below')
+    print('1. Edit watchlist')
+    print('2. Intraday')
+    print('3. Long term')
+    val = int(input())
+    if val == 1:
+        while True:
+            print('Select options below')
+            print('1. Add stock to watchlist')
+            print('2. Remove stock to watchlist')
+            print('3. To clear  watchlist')
+            print('4. Enter any key to go back')
 
-    
+            val = int(input())
+            if val == 1:
+                stock = str(input('Enter Stock to watchlist'))
+                stock = stock.upper()
+                watchlist2.append(stock)
+                f = open("watchlist.txt", "w")
+                for ele in watchlist2:
+                    f.write(ele + '\n')
+                f.close()
+            elif val == 2:
+                stock = str(input('Enter Stock to remove from watchlist'))
+                stock = stock.upper()
+                watchlist2.remove(stock)
+                f = open("watchlist.txt", "w")
+                for ele in watchlist2:
+                    f.write(ele + '\n')
+                f.close()
+            elif val == 3:
+                f = open("watchlist.txt", "r+")
+                f.truncate(0)
+                f.close()
+                print('Yours watchlist :', watchlist)
+            else:
+                break
+
+
+
+    elif val == 2:
+        print('loading data for intraday..............')
+        schedule.every(5).seconds.do(run_intraday)
+        while True:
+            schedule.run_pending()
+            time.sleep(1)
+
+    elif val == 3:
+        print('loading data for longterm..............')
+        schedule.every(5).seconds.do(run_longterm)
+        while True:
+            schedule.run_pending()
+            time.sleep(1)
