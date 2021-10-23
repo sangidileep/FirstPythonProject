@@ -137,9 +137,9 @@ def Final_Signal(data):
 
 
 def send_alert(data, i):
-    s_mail = "sangidileepchakravarthi@gmail.com"
-    password = "bfcsavaljidtpezz"
-    r_mail = "sangidileep@outlook.com"
+    s_mail = ""
+    password = ""
+    r_mail = ""
     server = smtplib.SMTP("smtp.gmail.com", 587)
     server.starttls()
     server.login(s_mail, password)
